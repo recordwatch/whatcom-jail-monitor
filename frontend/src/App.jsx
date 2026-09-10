@@ -7,7 +7,11 @@ import HistoryLog from './components/HistoryLog'
 
 function getDateLabel(entry, field = 'firstSeen') {
   const raw = entry[field] || entry.bookingDate || ''
-  return raw.split(',')[0].trim()
+  const d = new Date(raw)
+  if (isNaN(d.getTime())) return raw.split(',')[0].trim()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${month}/${day}/${d.getFullYear()}`
 }
 
 function BookingLog({ entries, grouped = false, groupBy = 'firstSeen' }) {
