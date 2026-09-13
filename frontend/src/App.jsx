@@ -4,6 +4,7 @@ import Header from './components/Header'
 import StatBar from './components/StatBar'
 import BookingCard from './components/BookingCard'
 import HistoryLog from './components/HistoryLog'
+import StatsPage from './components/StatsPage'
 
 function getDateLabel(entry, field = 'firstSeen') {
   const raw = entry[field] || entry.bookingDate || ''
@@ -173,6 +174,7 @@ export default function App() {
         <Route path="/" element={<InCustodyPage />} />
         <Route path="/released" element={<ReleasedPage />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/stats" element={<StatsPage />} />
       </Routes>
     </HashRouter>
   )
