@@ -81,12 +81,6 @@ export function daysBetween(startStr, endStr) {
   return days >= 0 ? days : null
 }
 
-function dayKey(dateStr) {
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return null
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 function topN(counter, n) {
   return Object.entries(counter)
     .sort((a, b) => b[1] - a[1])
@@ -119,26 +113,8 @@ export function computeStats(log) {
     releasedWithBailCount: releasesWithBail.length,
   }
 
-  // --- Trends (bookings & releases per day) ---
-  // Use firstSeen (when our scraper first observed the entry), not bookingDate —
-  // bookingDate is the jail's original booking date, which can be months in the
-  // past for long-held inmates and would scatter the chart across years.
-  const byDay = {}
-  for (const e of log) {
-    const bKey = dayKey(e.firstSeen)
-    if (bKey) {
-      byDay[bKey] = byDay[bKey] || { date: bKey, bookings: 0, releases: 0 }
-      byDay[bKey].bookings += 1
-    }
-    if (e.releasedAt) {
-      const rKey = dayKey(e.releasedAt)
-      if (rKey) {
-        byDay[rKey] = byDay[rKey] || { date: rKey, bookings: 0, releases: 0 }
-        byDay[rKey].releases += 1
-      }
-    }
-  }
-  // Day-of-week uses the actual bookingDate (real arrest timestamp), not firstSeen —
+  // --- Trends (bookings by day of week) ---
+  // Uses the actual bookingDate (real arrest timestamp), not firstSeen —
   // staleness doesn't matter here since only the weekday name is used, and bookingDate
   // reflects when people were actually arrested rather than when our scraper noticed them.
   const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -149,7 +125,7 @@ export function computeStats(log) {
   }
   const byWeekday = WEEKDAY_NAMES.map((name, i) => ({ name, count: weekdayCounts[i] }))
 
-  const trends = { byDay: Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)), byWeekday }
+  const trends = { byWeekday }
 
   // --- Crime Types ---
   const categoryCounts = {}

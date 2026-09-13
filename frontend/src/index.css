@@ -304,26 +304,6 @@ body {
   font-weight: 400;
 }
 
-.daychart {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 140px;
-  margin-bottom: 0.5rem;
-  border-bottom: 1px solid #332C4D;
-  padding-bottom: 0.25rem;
-}
-.daychart-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
-.daychart-bars { display: flex; align-items: flex-end; gap: 2px; height: 100%; width: 100%; justify-content: center; }
-.daychart-bar { width: 40%; min-height: 2px; }
-.daychart-bookings { background: #7A5FC7; }
-.daychart-releases { background: #B89AE8; }
-.daychart-label { font-size: 0.6rem; color: #9089A8; margin-top: 0.3rem; }
-.daychart-legend { display: flex; gap: 1.25rem; font-size: 0.7rem; color: #9089A8; margin-bottom: 1.5rem; }
-.legend-swatch { display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: 0.35rem; }
-.legend-bookings { background: #7A5FC7; }
-.legend-releases { background: #B89AE8; }
-
 .agency-block { padding: 0.75rem 0; border-bottom: 1px solid #332C4D; }
 .agency-name { font-family: 'Playfair Display', serif; font-size: 0.9rem; color: #E7E2F2; }
 .agency-meta { font-size: 0.65rem; color: #9089A8; margin: 0.2rem 0 0.4rem; text-transform: uppercase; letter-spacing: 0.06em; }

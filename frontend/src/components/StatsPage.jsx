@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Header from './Header'
 import HBarList from './HBarList'
-import DayBarChart from './DayBarChart'
 import { computeStats } from '../statsUtils'
 
 const TABS = ['Summary', 'Trends', 'Crime Types', 'Bail & Release', 'Agencies', 'Detention', 'Recidivism']
@@ -48,10 +47,6 @@ function SummaryTab({ stats }) {
         <div className="stat-card-label">Released w/ Bail Set</div>
         <div className="stat-card-sub">{t.releasedWithBailCount} of {t.released}</div>
       </div>
-      <div className="section-title" style={{ gridColumn: '1 / -1' }}>Bookings vs Releases by Day</div>
-      <div style={{ gridColumn: '1 / -1' }}>
-        <DayBarChart byDay={stats.trends.byDay} />
-      </div>
     </div>
   )
 }
@@ -59,21 +54,6 @@ function SummaryTab({ stats }) {
 function TrendsTab({ stats }) {
   return (
     <div>
-      <div className="section-note">Bookings and releases per calendar day since tracking began. Short history right now — this fills in as the roster keeps running.</div>
-      <DayBarChart byDay={stats.trends.byDay} />
-      <div className="daychart-legend">
-        <span><i className="legend-swatch legend-bookings" /> Bookings</span>
-        <span><i className="legend-swatch legend-releases" /> Releases</span>
-      </div>
-      <table className="stats-table">
-        <thead><tr><th>Date</th><th>Bookings</th><th>Releases</th></tr></thead>
-        <tbody>
-          {stats.trends.byDay.map(d => (
-            <tr key={d.date}><td>{d.date}</td><td>{d.bookings}</td><td>{d.releases}</td></tr>
-          ))}
-        </tbody>
-      </table>
-
       <div className="section-title">Bookings by Day of Week</div>
       <div className="section-note">By actual booking timestamp, not when our scraper first saw the entry.</div>
       <HBarList items={stats.trends.byWeekday} />
