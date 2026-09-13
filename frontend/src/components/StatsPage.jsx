@@ -73,6 +73,10 @@ function TrendsTab({ stats }) {
           ))}
         </tbody>
       </table>
+
+      <div className="section-title">Bookings by Day of Week</div>
+      <div className="section-note">By actual booking timestamp, not when our scraper first saw the entry.</div>
+      <HBarList items={stats.trends.byWeekday} />
     </div>
   )
 }

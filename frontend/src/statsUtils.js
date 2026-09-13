@@ -138,7 +138,18 @@ export function computeStats(log) {
       }
     }
   }
-  const trends = { byDay: Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)) }
+  // Day-of-week uses the actual bookingDate (real arrest timestamp), not firstSeen —
+  // staleness doesn't matter here since only the weekday name is used, and bookingDate
+  // reflects when people were actually arrested rather than when our scraper noticed them.
+  const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const weekdayCounts = new Array(7).fill(0)
+  for (const e of log) {
+    const d = new Date(e.bookingDate || e.firstSeen)
+    if (!isNaN(d.getTime())) weekdayCounts[d.getDay()] += 1
+  }
+  const byWeekday = WEEKDAY_NAMES.map((name, i) => ({ name, count: weekdayCounts[i] }))
+
+  const trends = { byDay: Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date)), byWeekday }
 
   // --- Crime Types ---
   const categoryCounts = {}
