@@ -17,7 +17,12 @@ export default function BookingCard({ entry }) {
   const [open, setOpen] = useState(false)
 
   const isReleased = entry.status === 'released'
-  const timeHeld = isReleased ? calcTimeHeld(entry.firstSeen, entry.releasedAt) : null
+  // Counted from the county's booking time. The release time is when our
+  // scraper noticed the person was gone (the county doesn't publish one),
+  // so the result is approximate.
+  const heldRaw = isReleased ? calcTimeHeld(entry.bookingDate || entry.firstSeen, entry.releasedAt) : null
+  const releaseDetected = entry.releaseSource !== 'county'
+  const timeHeld = heldRaw && releaseDetected ? `about ${heldRaw}` : heldRaw
   const location = [entry.facility, entry.facilityFloor, entry.facilityCell].filter(Boolean).join(' · ')
 
   return (
@@ -43,7 +48,9 @@ export default function BookingCard({ entry }) {
         <div className="card-body">
           {isReleased && entry.releasedAt && (
             <div className="card-release-row">
-              Released: {entry.releasedAt}{timeHeld && <span className="card-time-held-detail"> &nbsp;·&nbsp; Time held: {timeHeld}</span>}
+              {releaseDetected ? 'Release noticed' : 'Released'}: {entry.releasedAt}
+              {releaseDetected && entry.lastSeenInCustodyAt && <span> (last seen in custody {entry.lastSeenInCustodyAt})</span>}
+              {timeHeld && <span className="card-time-held-detail"> &nbsp;·&nbsp; Time held: {timeHeld}</span>}
             </div>
           )}
 
