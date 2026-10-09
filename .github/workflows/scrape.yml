@@ -5,6 +5,11 @@ name: Scrape & Deploy
 # about 10% of scheduled runs, and keeping both would double up.
 on:
   workflow_dispatch:
+    inputs:
+      allow_big_drop:
+        description: 'Allow in-custody to drop by more than 5 people and 10% in one run (only if the drop is real)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -37,6 +42,8 @@ jobs:
 
       - name: Run scraper
         run: node scrape.js
+        env:
+          ALLOW_BIG_DROP: ${{ inputs.allow_big_drop && '1' || '' }}
 
       - name: Copy data to frontend public
         run: |
@@ -49,7 +56,12 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
 
+      # Runs even when an earlier step failed: a broken frontend build
+      # shouldn't throw away scraped data (it did on Sep 25-26). The scraper
+      # writes nothing when it fails, so a failed scrape commits nothing.
+      # The job still shows red.
       - name: Commit data files
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
