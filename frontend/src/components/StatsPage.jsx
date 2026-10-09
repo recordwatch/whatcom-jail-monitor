@@ -19,6 +19,7 @@ function fmtDays(n) {
 function SummaryTab({ stats }) {
   const t = stats.totals
   return (
+    <>
     <div className="stats-grid">
       <div className="stat-card">
         <div className="stat-card-num">{t.totalBookings}</div>
@@ -34,8 +35,8 @@ function SummaryTab({ stats }) {
       </div>
       <div className="stat-card">
         <div className="stat-card-num">{fmtDays(t.avgStayDays)}</div>
-        <div className="stat-card-label">Avg Stay</div>
-        <div className="stat-card-sub">median {fmtDays(t.medianStayDays)}</div>
+        <div className="stat-card-label">Avg Stay (approx.)</div>
+        <div className="stat-card-sub">median {fmtDays(t.medianStayDays)} · n={t.stayCount}</div>
       </div>
       <div className="stat-card">
         <div className="stat-card-num">{t.avgCharges?.toFixed(1) ?? '—'}</div>
@@ -47,6 +48,20 @@ function SummaryTab({ stats }) {
         <div className="stat-card-label">Released w/ Bail Set</div>
         <div className="stat-card-sub">{t.releasedWithBailCount} of {t.released}</div>
       </div>
+    </div>
+    <StayCaveats />
+    </>
+  )
+}
+
+function StayCaveats() {
+  return (
+    <div className="section-note">
+      Stays run from the county's booking time to when our scraper noticed the person was gone; the county
+      doesn't publish release times, so every stay is approximate. Before Oct 9, 2026 the scraper ran only every
+      few hours, so short stays (under about 6 hours) are mostly missing and averages skew long. Only people
+      already released are counted, so current long holds aren't included. "In custody" includes electronic
+      home detention, work release, and work crew bookings.
     </div>
   )
 }
@@ -130,7 +145,7 @@ function AgenciesTab({ stats }) {
 function DetentionTab({ stats }) {
   return (
     <div>
-      <div className="section-note">Released bookings only, ≥2 data points per category. Sorted by average days.</div>
+      <div className="section-note">Released bookings only, ≥2 data points per category. Sorted by average days. Approximate: see the caveats below.</div>
       <table className="stats-table">
         <thead><tr><th>Category</th><th>Avg Days</th><th>Median Days</th><th>n</th></tr></thead>
         <tbody>
@@ -145,6 +160,7 @@ function DetentionTab({ stats }) {
         </tbody>
       </table>
       {stats.detention.length === 0 && <div className="empty">Not enough released bookings yet to break this down by category.</div>}
+      <StayCaveats />
     </div>
   )
 }

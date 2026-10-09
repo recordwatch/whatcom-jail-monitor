@@ -29,7 +29,8 @@ function calculateTimeServed(booked, released) {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
   const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-  return `${diffDays}d${diffHours}h${diffMins}m`
+  // "~": release times are when our scraper noticed, not the county's.
+  return `~${diffDays}d${diffHours}h${diffMins}m`
 }
 
 export default function HistoryLog({ entries, search = '' }) {

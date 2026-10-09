@@ -97,6 +97,10 @@ async function run() {
 
   let roster = readJSON(ROSTER_FILE, {});
   let log    = readJSON(LOG_FILE, []);
+  // When the last successful run finished. Anyone released this run was
+  // still on the county's list then, so their real release happened
+  // between that time and now. Missing on a first run, which is fine.
+  const lastRunAt = fs.existsSync(STATUS_FILE) ? JSON.parse(fs.readFileSync(STATUS_FILE, 'utf-8')).lastUpdated ?? null : null;
 
   let bookings;
   try {
@@ -179,26 +183,47 @@ async function run() {
     entry.releaseReversals = [...(entry.releaseReversals || []), reversal];
     entry.status = 'in_custody';
     entry.releasedAt = null;
+    entry.releaseSource = null;
+    entry.lastSeenInCustodyAt = null;
     const logEntry = log.find(e => e.idnum === b.booking_num);
     if (logEntry) {
       logEntry.releaseReversals = entry.releaseReversals;
       logEntry.status = entry.status;
       logEntry.releasedAt = null;
+      logEntry.releaseSource = null;
+      logEntry.lastSeenInCustodyAt = null;
     }
   }
 
   // Releases — in previous roster but no longer on the current page.
+  // Whatcom's API has no release field, so releasedAt is when we noticed
+  // (releaseSource 'detected'); the real release was after
+  // lastSeenInCustodyAt and before releasedAt.
   for (const id of releasedIds) {
     const inmate = roster[id];
     console.log(`  RELEASED: ${inmate.name}`);
     roster[id].status     = 'released';
     roster[id].releasedAt = now;
+    roster[id].releaseSource = 'detected';
+    roster[id].lastSeenInCustodyAt = lastRunAt;
     const logEntry = log.find(e => e.idnum === id);
     if (logEntry) {
       logEntry.status     = 'released';
       logEntry.releasedAt = roster[id].releasedAt;
+      logEntry.releaseSource = 'detected';
+      logEntry.lastSeenInCustodyAt = lastRunAt;
     }
   }
+
+  // One-time label for releases recorded before releaseSource existed: all
+  // of them were detected the same way. Done here, by the scraper, rather
+  // than by a separate data push that the workflow's `git pull -X ours`
+  // could overwrite. lastSeenInCustodyAt is left unset for them.
+  let labeled = 0;
+  for (const e of [...Object.values(roster), ...log]) {
+    if (e.status === 'released' && !e.releaseSource) { e.releaseSource = 'detected'; labeled++; }
+  }
+  if (labeled) console.log(`  Labeled ${labeled} existing record(s) (roster + log) releaseSource: detected`);
 
   writeJSON(ROSTER_FILE, roster);
   writeJSON(LOG_FILE, log);
