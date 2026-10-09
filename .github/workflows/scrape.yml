@@ -1,21 +1,30 @@
 name: Scrape & Deploy
 
+# Triggered externally by cron-job.org every 30 minutes (:07 and :37) through
+# the workflow_dispatch API. GitHub's own `schedule` was removed: it ran only
+# about 10% of scheduled runs, and keeping both would double up.
 on:
-  schedule:
-    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# Never run two scrapes at once; a second trigger waits for the first.
+concurrency:
+  group: scrape
+  cancel-in-progress: false
 
 jobs:
   scrape-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # ref: main so a run that sat queued starts from the latest data, not
+      # the commit that existed when it was triggered.
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Setup Node.js
