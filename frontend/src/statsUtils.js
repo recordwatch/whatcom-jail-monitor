@@ -206,19 +206,19 @@ export function computeStats(log) {
     .sort((a, b) => b.avgDays - a.avgDays)
 
   // --- Recidivism ---
-  const byPerson = {}
+  // Counts only; no names leave this function, so the stats page can't
+  // single anyone out.
+  const bookingsPerPerson = {}
   for (const e of log) {
     const key = e.nameId || e.name
-    byPerson[key] = byPerson[key] || { name: e.name, count: 0 }
-    byPerson[key].count += 1
+    bookingsPerPerson[key] = (bookingsPerPerson[key] || 0) + 1
   }
-  const people = Object.values(byPerson)
-  const repeaters = people.filter(p => p.count > 1)
+  const counts = Object.values(bookingsPerPerson)
+  const repeatCount = counts.filter(n => n > 1).length
   const recidivism = {
-    distinctCount: people.length,
-    repeatCount: repeaters.length,
-    repeatRate: people.length ? (repeaters.length / people.length) * 100 : 0,
-    topRepeaters: repeaters.sort((a, b) => b.count - a.count).slice(0, 20),
+    distinctCount: counts.length,
+    repeatCount,
+    repeatRate: counts.length ? (repeatCount / counts.length) * 100 : 0,
   }
 
   return { totals, trends, crimeTypes, bail, agencies, detention, recidivism }

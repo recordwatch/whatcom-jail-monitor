@@ -158,17 +158,6 @@ function RecidivismTab({ stats }) {
         <div className="stat-card"><div className="stat-card-num">{r.repeatCount}</div><div className="stat-card-label">Repeat Individuals</div></div>
         <div className="stat-card"><div className="stat-card-num">{r.distinctCount}</div><div className="stat-card-label">Unique Individuals Tracked</div></div>
       </div>
-      <div className="section-title">Repeat Bookers</div>
-      {r.topRepeaters.length === 0 ? (
-        <div className="empty">No repeat bookings tracked yet — this is a brand-new monitor, so give it time.</div>
-      ) : (
-        <table className="stats-table">
-          <thead><tr><th>Name</th><th>Bookings</th></tr></thead>
-          <tbody>
-            {r.topRepeaters.map(p => <tr key={p.name}><td>{p.name}</td><td>{p.count}</td></tr>)}
-          </tbody>
-        </table>
-      )}
     </div>
   )
 }
