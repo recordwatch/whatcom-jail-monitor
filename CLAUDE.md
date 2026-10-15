@@ -1,5 +1,21 @@
 # Whatcom Jail Roster — Project Context
 
+## Standing rules for every Claude Code session
+1. Always paste the full, real diff. Never a summary.
+2. Never commit until the user replies "commit".
+3. Any field claiming a county value (release time, release reason, status) must be backed by a value that actually parses. Otherwise label it `detected` or `unverified`.
+4. Test edge cases and list them: blank, unparseable, small populations, reappearance, rebuild/error pages.
+5. Flag anything uncertain instead of deciding silently.
+6. After pushing any data backfill, wait for the next scrape run and confirm the backfill counts survived.
+7. Check "Pending verification" (below) first, every session.
+
+Hard constraints for build prompts: no DELETE / DROP / TRUNCATE / UPDATE on stored data and no schema changes unless explicitly approved; don't touch scrapers or parsers unless that's the task; row counts identical before and after; before/after numbers for anything that changes a published stat. Before auditing code, `git pull` so the working tree matches deployed `main`.
+
+## Pending verification
+_Things that can only be checked later (a future data republish, a canary, a retry that hasn't fired yet). Remove an item once it is verified, noting the date and result._
+
+- (none open)
+
 ## What it is
 A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sheriff's Office roster JSON API every 30 minutes, tracks bookings and releases, and displays them on a public website.
 
