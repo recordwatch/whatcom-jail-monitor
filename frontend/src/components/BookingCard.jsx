@@ -17,9 +17,9 @@ export default function BookingCard({ entry }) {
   const [open, setOpen] = useState(false)
 
   const isReleased = entry.status === 'released'
-  // Counted from the county's booking time. The release time is when our
-  // scraper noticed the person was gone (the county doesn't publish one),
-  // so the result is approximate.
+  // Counted from the county's booking time. The release time is the county's
+  // own (releaseSource 'county', from its releases list) or, until the county
+  // lists it, when our scraper noticed the person was gone, which is approximate.
   const heldRaw = isReleased ? calcTimeHeld(entry.bookingDate || entry.firstSeen, entry.releasedAt) : null
   const releaseDetected = entry.releaseSource !== 'county'
   const timeHeld = heldRaw && releaseDetected ? `about ${heldRaw}` : heldRaw

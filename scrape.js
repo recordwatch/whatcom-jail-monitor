@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { scrapeRoster } from './scrapers/whatcom.js';
+import { scrapeRoster, fetchReleases } from './scrapers/whatcom.js';
 import { nowPST } from './utils.js';
 import { setTimeout as sleep } from 'timers/promises';
 
@@ -26,6 +26,36 @@ const RETRY_DELAY_MS = Number(process.env.RETRY_DELAY_MS || 5000);
 // ALLOW_BIG_DROP=1 overrides it for one run when a big drop is real.
 const GUARD_MIN_PEOPLE = 5;
 const GUARD_MIN_FRACTION = 0.10;
+
+// A detected release is looked up on the county's releases list for this
+// many days after we noticed it, in case the county enters it late. After
+// that it is looked up once (releaseChecked) and left as detected.
+const RELEASE_RECHECK_DAYS = 3;
+const RELEASES_DELAY_MS = Number(process.env.RELEASES_DELAY_MS ?? 1000);
+
+// County times look like "2026-09-26 07:00:13.0" (Pacific, same zone as
+// ours). Returns our "MM/DD/YYYY, HH:MM:SS" format, or null if it isn't a
+// real date and time.
+function countyToPST(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d+)?$/.exec(s ?? '');
+  if (!m) return null;
+  const [, y, mo, d, h, mi, se] = m;
+  const day = new Date(Date.UTC(+y, +mo - 1, +d));
+  if (day.getUTCMonth() !== +mo - 1 || day.getUTCDate() !== +d || +h > 23 || +mi > 59 || +se > 59) return null;
+  return `${mo}/${d}/${y}, ${h}:${mi}:${se}`;
+}
+
+// Our "MM/DD/YYYY, HH:MM:SS" -> "YYYY-MM-DD HH:MM:SS", which sorts and
+// compares correctly as a plain string.
+function sortable(pst) {
+  return `${pst.slice(6, 10)}-${pst.slice(0, 2)}-${pst.slice(3, 5)} ${pst.slice(12)}`;
+}
+
+function addDays(day, n) {
+  const t = new Date(`${day}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + n);
+  return t.toISOString().slice(0, 10);
+}
 
 // A missing or unreadable data file stops the run instead of starting over
 // from empty: an empty roster would make everyone look newly booked, and an
@@ -90,6 +120,97 @@ function buildEntry(b, firstSeen) {
     charges: mapCharges(b.offenses),
     hasDetail: true,
   };
+}
+
+// Replace detected release times with the county's own (from its releases
+// list), and add people who were booked and released entirely between two of
+// our runs, so were never on a roster we saw. Failures here only warn: the
+// roster update is still good, and anything not looked up is retried next run.
+async function applyCountyReleases(roster, log, now) {
+  const today = sortable(now).slice(0, 10);
+  const recent = addDays(today, -RELEASE_RECHECK_DAYS);
+  const pending = Object.values(roster).filter(e =>
+    e.status === 'released' && e.releaseSource !== 'county' &&
+    (!e.releaseChecked || sortable(e.releasedAt).slice(0, 10) >= recent));
+
+  // Days to fetch: today and yesterday every run (for people never seen),
+  // plus around each pending release. We notice a release after it happens,
+  // so look up to 2 days before; the county sometimes records it a little
+  // after we notice, which can cross midnight, so 1 day after too.
+  const daysFor = e => {
+    const d = sortable(e.releasedAt).slice(0, 10);
+    return [-2, -1, 0, 1].map(n => addDays(d, n)).filter(x => x <= today);
+  };
+  const days = new Set([today, addDays(today, -1)]);
+  for (const e of pending) for (const d of daysFor(e)) days.add(d);
+
+  const county = new Map();   // booking_num -> county release record
+  const fetched = new Set();
+  for (const day of [...days].sort()) {
+    try {
+      for (const r of await fetchReleases(day)) if (r?.booking_num) county.set(r.booking_num, r);
+      fetched.add(day);
+    } catch (err) {
+      console.warn(`  Releases for ${day} could not be fetched (retried next run): ${err.message}`);
+    }
+    if (RELEASES_DELAY_MS) await sleep(RELEASES_DELAY_MS);
+  }
+
+  const logIndex = new Map(log.map((e, i) => [e.idnum, i]));
+  const update = (id, fields) => {
+    Object.assign(roster[id], fields);
+    const i = logIndex.get(id);
+    if (i !== undefined) Object.assign(log[i], fields);
+  };
+
+  // 'county' only for a release_date that parses as a real time, and not
+  // before the booking (that would be a different stay).
+  let verified = 0;
+  for (const e of pending) {
+    const r = county.get(e.idnum);
+    const at = r ? countyToPST(r.release_date) : null;
+    const booked = countyToPST(e.bookingDate);
+    if (at && (!booked || sortable(at) >= sortable(booked))) {
+      update(e.idnum, {
+        releasedAt: at,
+        releaseSource: 'county',
+        releaseReason: r.release_description ?? null,
+        releaseDetectedAt: e.releasedAt,
+        releaseChecked: true,
+      });
+      verified++;
+    } else if (!e.releaseChecked && daysFor(e).every(d => fetched.has(d))) {
+      update(e.idnum, { releaseChecked: true });
+    }
+  }
+
+  // Booked and released between two of our runs. Only releases after our
+  // first run count; anyone released before it was never ours to see.
+  const start = log.reduce((min, e) => (e.firstSeen && sortable(e.firstSeen) < min ? sortable(e.firstSeen) : min), '9999');
+  let added = 0;
+  for (const r of county.values()) {
+    if (roster[r.booking_num]) continue;
+    const at = countyToPST(r.release_date);
+    const booked = countyToPST(r.booking_date);
+    if (!at || !booked || sortable(at) <= start || sortable(at) < sortable(booked)) continue;
+    console.log(`  ADDED (booked and released between runs): ${r.fullname}`);
+    const entry = {
+      ...buildEntry(r, booked),
+      status: 'released',
+      releasedAt: at,
+      releaseSource: 'county',
+      releaseReason: r.release_description ?? null,
+      releaseChecked: true,
+      // Never on any roster we fetched, so firstSeen is the county's booking time.
+      seenInCustody: false,
+    };
+    roster[r.booking_num] = entry;
+    const pos = log.findIndex(e => sortable(e.firstSeen) < sortable(booked));
+    log.splice(pos === -1 ? log.length : pos, 0, entry);
+    added++;
+  }
+
+  console.log(`  County releases: ${fetched.size}/${days.size} day(s) fetched, ${verified} release time(s) verified, ${added} never-seen booking(s) added`);
 }
 
 async function run() {
@@ -179,20 +300,20 @@ async function run() {
   for (const b of reappeared) {
     const entry = roster[b.booking_num];
     console.log(`  REAPPEARED: ${entry.name} (marked released ${entry.releasedAt})`);
-    const reversal = { releasedAt: entry.releasedAt, reversedAt: now };
-    entry.releaseReversals = [...(entry.releaseReversals || []), reversal];
-    entry.status = 'in_custody';
-    entry.releasedAt = null;
-    entry.releaseSource = null;
-    entry.lastSeenInCustodyAt = null;
+    const reversal = { releasedAt: entry.releasedAt, releaseSource: entry.releaseSource ?? null, reversedAt: now };
+    const cleared = {
+      releaseReversals: [...(entry.releaseReversals || []), reversal],
+      status: 'in_custody',
+      releasedAt: null,
+      releaseSource: null,
+      lastSeenInCustodyAt: null,
+      releaseReason: null,
+      releaseDetectedAt: null,
+      releaseChecked: null,
+    };
+    Object.assign(entry, cleared);
     const logEntry = log.find(e => e.idnum === b.booking_num);
-    if (logEntry) {
-      logEntry.releaseReversals = entry.releaseReversals;
-      logEntry.status = entry.status;
-      logEntry.releasedAt = null;
-      logEntry.releaseSource = null;
-      logEntry.lastSeenInCustodyAt = null;
-    }
+    if (logEntry) Object.assign(logEntry, cleared);
   }
 
   // Releases — in previous roster but no longer on the current page.
@@ -224,6 +345,8 @@ async function run() {
     if (e.status === 'released' && !e.releaseSource) { e.releaseSource = 'detected'; labeled++; }
   }
   if (labeled) console.log(`  Labeled ${labeled} existing record(s) (roster + log) releaseSource: detected`);
+
+  await applyCountyReleases(roster, log, now);
 
   writeJSON(ROSTER_FILE, roster);
   writeJSON(LOG_FILE, log);
