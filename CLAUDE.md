@@ -14,7 +14,7 @@ Hard constraints for build prompts: no DELETE / DROP / TRUNCATE / UPDATE on stor
 ## Pending verification
 _Things that can only be checked later (a future data republish, a canary, a retry that hasn't fired yet). Remove an item once it is verified, noting the date and result._
 
-- **County release-time backfill (added 2026-10-27).** The first scheduled run after this merges looks up all ~600 past releases (about 50 day requests, ~2 minutes). Dry run on 10/27 data: 602 of 602 releases matched to county times (583 on the first run, the other 19 on the second after one day's request was reset), 16 never-seen bookings added (884 -> 900 rows), median stay 2.10 -> 1.88 days. Verify on the live data after the first two real runs: every released entry has `releaseSource: 'county'` except any the county never listed, row count is 900 + new bookings, and later runs log only 2 day requests.
+- (none open)
 
 ## What it is
 A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sheriff's Office roster JSON API every 30 minutes, tracks bookings and releases, and displays them on a public website.
@@ -39,6 +39,7 @@ A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sher
 - Release detection is diff-based: if a `booking_num` drops off the roster, it's marked released (same approach as Thurston/Kitsap) with `releaseSource: 'detected'` (the time we noticed)
 - Real release times come from a second county feed, `api/releases.jsp?releasesDate=YYYY-MM-DD` (behind `releases.html`). Each run looks up every detected release around its date and, when the county lists it with a `release_date` that parses, replaces `releasedAt` with the county time (`releaseSource: 'county'`, plus `releaseReason` and the old time in `releaseDetectedAt`). A release the county doesn't list is rechecked for 3 days, then left `detected` (`releaseChecked: true`). Failed lookups only warn and are retried next run
 - The same feed adds people booked *and* released between two runs (never on any roster we fetched): `seenInCustody: false`, and their `firstSeen` is the county's booking time
+- County release-time backfill verified 2026-10-28: run 1087 fetched 51/51 days, verified 596 releases, added 16 never-seen bookings; run 1088 fetched 2/2 days. Live data: 612/612 releases `county`, 910 rows, roster and log consistent.
 - Mutable fields (cell/floor moves, charge disposition updates as cases resolve) are refreshed every run for anyone still in custody, since the API always returns full current state
 
 ## Key files
