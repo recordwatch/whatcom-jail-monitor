@@ -96,8 +96,9 @@ export function computeStats(log) {
   // --- Summary ---
   // Stays start at the county's booking time. firstSeen is when our scraper
   // first noticed someone, which for everyone already in jail at launch is
-  // the launch day, cutting their stays short. The end is a detected time
-  // (see releaseSource), so these are approximate.
+  // the launch day, cutting their stays short. The end is the county's
+  // release time, or a detected (approximate) one until the county lists it;
+  // see releaseSource.
   const stays = released.map(e => daysBetween(e.bookingDate || e.firstSeen, e.releasedAt)).filter(d => d !== null)
   const chargeCounts = log.map(e => (e.charges || []).length)
   const releasesWithBail = released.filter(e =>

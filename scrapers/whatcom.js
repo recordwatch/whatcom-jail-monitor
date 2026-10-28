@@ -31,3 +31,20 @@ export async function scrapeRoster() {
   if (missing > 0) throw new Error(`${missing} booking(s) in the API response have no booking_num (API change?)`);
   return roster;
 }
+
+// The feed behind the county's releases.html page: everyone released on one
+// day (YYYY-MM-DD, Pacific), with the county's own release_date and
+// release_description. The roster feed has no release time at all, so this is
+// the only source for real release times. Throws on anything that isn't a
+// list of releases.
+// WHATCOM_RELEASES_URL exists only so tests can point at a local mock server.
+const RELEASES_URL = process.env.WHATCOM_RELEASES_URL || 'https://apps1.whatcomcounty.us/jaildata/api/releases.jsp';
+
+export async function fetchReleases(day) {
+  const res = await axios.get(RELEASES_URL, { headers: HEADERS, timeout: 30000, params: { releasesDate: day } });
+  const releases = res.data?.releases;
+  if (!Array.isArray(releases)) {
+    throw new Error(`releases response for ${day} has no releases array (got ${typeof res.data})`);
+  }
+  return releases;
+}
