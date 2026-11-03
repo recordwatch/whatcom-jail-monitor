@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { chargeBailInfo } from '../statsUtils.js'
 
 function calcTimeHeld(start, end) {
   if (!start || !end) return null
@@ -24,6 +25,7 @@ export default function BookingCard({ entry }) {
   const releaseDetected = entry.releaseSource !== 'county'
   const timeHeld = heldRaw && releaseDetected ? `about ${heldRaw}` : heldRaw
   const location = [entry.facility, entry.facilityFloor, entry.facilityCell].filter(Boolean).join(' · ')
+  const bailInfo = chargeBailInfo(entry.charges)
 
   return (
     <div className={`card ${isReleased ? 'card-released' : 'card-custody'}`}>
@@ -64,7 +66,13 @@ export default function BookingCard({ entry }) {
                     <div className="charge-court">{c.court}{c.causeNumber && ` — Cause #${c.causeNumber}`}</div>
                   )}
                   {c.arrestAgency && <div className="charge-agency">Arresting agency: {c.arrestAgency}</div>}
-                  {c.bail && <div className="charge-bail">Bail: {c.bail}{c.bondType && ` (${c.bondType})`}</div>}
+                  {c.bail && (
+                    <div className="charge-bail">
+                      Bail: {bailInfo[i].included ? 'INCLUDED (same bond as a charge above)' : c.bail}
+                      {c.bondType && ` (${c.bondType})`}
+                      {bailInfo[i].disposed && ' — not valid, charge has a disposition'}
+                    </div>
+                  )}
                   {c.disposition && (
                     <div className="charge-disposition">Disposition: {c.disposition}{c.dispositionDate && ` — ${c.dispositionDate}`}</div>
                   )}

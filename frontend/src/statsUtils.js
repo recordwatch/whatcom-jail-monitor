@@ -54,6 +54,20 @@ export function classifySeverity(rawCharge) {
   return 'Unknown'
 }
 
+// How the county's own roster page shows bail, per charge: a charge whose
+// bondNumber already appeared earlier in the same booking is covered by that
+// bail ("INCLUDED"), and bail on a charge that has a disposition is no longer
+// valid. Charges without a bondNumber (older records the county couldn't
+// match) each show their own bail, as before.
+export function chargeBailInfo(charges) {
+  const seen = new Set()
+  return (charges || []).map(c => {
+    const included = c.bondNumber != null && seen.has(c.bondNumber)
+    if (c.bondNumber != null) seen.add(c.bondNumber)
+    return { included, disposed: !!c.disposition }
+  })
+}
+
 export function parseBail(bailStr) {
   if (!bailStr) return null
   const m = bailStr.replace(/,/g, '').match(/\$([\d.]+)/)
@@ -157,10 +171,18 @@ export function computeStats(log) {
   }
 
   // --- Bail & Release ---
+  // Each bond counts once, at the amount on its first charge, and only while
+  // at least one of its charges has no disposition (the county marks bail on
+  // disposed charges not valid). Charges without a bondNumber count alone.
   const bailValues = []
   const bailByCategory = {}
   for (const e of log) {
-    for (const c of e.charges || []) {
+    const charges = e.charges || []
+    const info = chargeBailInfo(charges)
+    const openBonds = new Set(charges.filter(c => c.bondNumber != null && !c.disposition).map(c => c.bondNumber))
+    for (const [i, c] of charges.entries()) {
+      if (info[i].included) continue
+      if (c.bondNumber != null ? !openBonds.has(c.bondNumber) : info[i].disposed) continue
       const amt = parseBail(c.bail)
       if (amt === null || amt <= 0) continue
       bailValues.push(amt)

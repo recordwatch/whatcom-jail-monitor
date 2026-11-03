@@ -14,7 +14,7 @@ Hard constraints for build prompts: no DELETE / DROP / TRUNCATE / UPDATE on stor
 ## Pending verification
 _Things that can only be checked later (a future data republish, a canary, a retry that hasn't fired yet). Remove an item once it is verified, noting the date and result._
 
-- (none open)
+- **Bond-number backfill (added 2026-11-03).** The first scheduled run after this merges fills `bondNumber` on released bookings' charges from the county releases feed (about 55 day requests, ~2 minutes); in-custody charges get it from the roster on every run. The feed lists offenses reordered and repeated, so each charge matches on (description, cause number) to a single bond. Dry run on 11/03 data: 1,324 released charges filled, 200 null, 0 missing after 2 runs, 985 rows before and after, nothing else changed. Published bail stats: bonds with bail 2,103 -> 723, median $2,500 -> $3,000, mean $43,743 -> $54,860, max unchanged. Verify after the first two real runs: no charge lacks `bondNumber`, row count unchanged except new bookings, later runs don't log a bond-number line.
 
 ## What it is
 A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sheriff's Office roster JSON API every 30 minutes, tracks bookings and releases, and displays them on a public website.
@@ -56,7 +56,7 @@ A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sher
 ## Data format
 - `change_log.json` is an array of booking entries, newest first
 - Each entry: `idnum`/`bookingNumber` (booking_num), `name`, `status` (in_custody/released), `firstSeen`, `releasedAt`, `bookingDate`, `bookingAgency`, `bookingType`, `facility`, `facilityFloor`, `facilityCell`, `nameId`, `charges[]`, `hasDetail` (always true); released entries also have `releaseSource` ('detected' or 'county'), `lastSeenInCustodyAt`, and once looked up `releaseChecked`, `releaseReason`, `releaseDetectedAt`; `seenInCustody: false` marks a booking we never saw in custody; `releaseReversals[]` records releases undone because the person reappeared
-- Each charge: `{ charge, court, causeNumber, bail, bondType, arrestAgency, arrestType, eventNumber, disposition, dispositionDate }`
+- Each charge: `{ charge, court, causeNumber, bail, bondType, arrestAgency, arrestType, eventNumber, disposition, dispositionDate, bondNumber }`. Charges sharing a `bondNumber` are covered by one bail: the card shows the amount on the first and "INCLUDED" on the rest, and bail on a charge with a disposition is marked not valid, both as on the county's roster page (`chargeBailInfo` in `statsUtils.js`). Bail stats count each bond once, only while one of its charges has no disposition. `bondNumber: null` means no bond or no unique match; those charges show their own bail
 - `name` format: `LAST, FIRST MIDDLE`
 - `firstSeen` format: "MM/DD/YYYY, HH:MM:SS" (PST)
 
