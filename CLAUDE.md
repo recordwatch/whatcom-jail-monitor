@@ -60,6 +60,7 @@ A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sher
 - Each charge: `{ charge, court, causeNumber, bail, bondType, arrestAgency, arrestType, eventNumber, disposition, dispositionDate, bondNumber }`. Charges sharing a `bondNumber` are covered by one bail: the card shows the amount on the first and "INCLUDED" on the rest, and bail on a charge with a disposition is marked not valid, both as on the county's roster page (`chargeBailInfo` in `statsUtils.js`). Bail stats count each bond once, only while one of its charges has no disposition. `bondNumber: null` means no bond or no unique match; those charges show their own bail
 - `name` format: `LAST, FIRST MIDDLE`
 - `firstSeen` format: "MM/DD/YYYY, HH:MM:SS" (PST)
+- All stored times (ours and the county's) are Pacific wall-clock time with no UTC offset, so they're ambiguous for the repeated hour when clocks fall back each November (1:00-1:59 AM happens twice). Known effect, left as is: on 11/01/2026 one booking first seen at 1:07 AM PST is listed after one seen at 1:37 AM PDT, and a stay that crosses the change can be off by an hour. Fixing it means storing an offset on every time, a format change across all records
 
 ## Color scheme
 - Violet/storm theme (distinct from Kitsap's blue, Pierce's green, Thurston's amber/bronze)
