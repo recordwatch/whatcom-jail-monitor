@@ -14,7 +14,7 @@ Hard constraints for build prompts: no DELETE / DROP / TRUNCATE / UPDATE on stor
 ## Pending verification
 _Things that can only be checked later (a future data republish, a canary, a retry that hasn't fired yet). Remove an item once it is verified, noting the date and result._
 
-- **Bond-number backfill (added 2026-11-03).** The first scheduled run after this merges fills `bondNumber` on released bookings' charges from the county releases feed (about 55 day requests, ~2 minutes); in-custody charges get it from the roster on every run. The feed lists offenses reordered and repeated, so each charge matches on (description, cause number) to a single bond. Dry run on 11/03 data: 1,324 released charges filled, 200 null, 0 missing after 2 runs, 985 rows before and after, nothing else changed. Published bail stats: bonds with bail 2,103 -> 723, median $2,500 -> $3,000, mean $43,743 -> $54,860, max unchanged. Verify after the first two real runs: no charge lacks `bondNumber`, row count unchanged except new bookings, later runs don't log a bond-number line.
+- (none open)
 
 ## What it is
 A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sheriff's Office roster JSON API every 30 minutes, tracks bookings and releases, and displays them on a public website.
@@ -40,6 +40,7 @@ A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sher
 - Real release times come from a second county feed, `api/releases.jsp?releasesDate=YYYY-MM-DD` (behind `releases.html`). Each run looks up every detected release around its date and, when the county lists it with a `release_date` that parses, replaces `releasedAt` with the county time (`releaseSource: 'county'`, plus `releaseReason` and the old time in `releaseDetectedAt`). A release the county doesn't list is rechecked for 3 days, then left `detected` (`releaseChecked: true`). Failed lookups only warn and are retried next run
 - The same feed adds people booked *and* released between two runs (never on any roster we fetched): `seenInCustody: false`, and their `firstSeen` is the county's booking time
 - County release-time backfill verified 2026-10-28: run 1087 fetched 51/51 days, verified 596 releases, added 16 never-seen bookings; run 1088 fetched 2/2 days. Live data: 612/612 releases `county`, 910 rows, roster and log consistent.
+- Bond-number backfill verified 2026-11-03: run 1367 filled released charges from the releases feed; run 1368 had nothing left. Live data: 0 of 2,734 charges missing `bondNumber`, 2,429 non-null, 985 rows, released records otherwise unchanged; bail stats 723 bonds, median $3,000, mean $54,860.
 - Mutable fields (cell/floor moves, charge disposition updates as cases resolve) are refreshed every run for anyone still in custody, since the API always returns full current state
 
 ## Key files
@@ -59,6 +60,7 @@ A public jail roster monitor for Whatcom County, WA (Bellingham). Polls the Sher
 - Each charge: `{ charge, court, causeNumber, bail, bondType, arrestAgency, arrestType, eventNumber, disposition, dispositionDate, bondNumber }`. Charges sharing a `bondNumber` are covered by one bail: the card shows the amount on the first and "INCLUDED" on the rest, and bail on a charge with a disposition is marked not valid, both as on the county's roster page (`chargeBailInfo` in `statsUtils.js`). Bail stats count each bond once, only while one of its charges has no disposition. `bondNumber: null` means no bond or no unique match; those charges show their own bail
 - `name` format: `LAST, FIRST MIDDLE`
 - `firstSeen` format: "MM/DD/YYYY, HH:MM:SS" (PST)
+- All stored times (ours and the county's) are Pacific wall-clock time with no UTC offset, so they're ambiguous for the repeated hour when clocks fall back each November (1:00-1:59 AM happens twice). Known effect, left as is: on 11/01/2026 one booking first seen at 1:07 AM PST is listed after one seen at 1:37 AM PDT, and a stay that crosses the change can be off by an hour. Fixing it means storing an offset on every time, a format change across all records
 
 ## Color scheme
 - Violet/storm theme (distinct from Kitsap's blue, Pierce's green, Thurston's amber/bronze)
