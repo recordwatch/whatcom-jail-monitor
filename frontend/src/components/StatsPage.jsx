@@ -103,10 +103,10 @@ function BailTab({ stats }) {
         <div className="stat-card"><div className="stat-card-num">{fmtMoney(b.median)}</div><div className="stat-card-label">Median Bail</div></div>
         <div className="stat-card"><div className="stat-card-num">{fmtMoney(Math.round(b.mean || 0))}</div><div className="stat-card-label">Mean Bail</div></div>
         <div className="stat-card"><div className="stat-card-num">{fmtMoney(b.max)}</div><div className="stat-card-label">Max Bail</div></div>
-        <div className="stat-card"><div className="stat-card-num">{b.n}</div><div className="stat-card-label">Charges w/ Bail Set</div></div>
+        <div className="stat-card"><div className="stat-card-num">{b.n}</div><div className="stat-card-label">Bonds w/ Bail Set</div></div>
       </div>
       <div className="section-title">Median Bail by Charge Category</div>
-      <div className="section-note">Bail parsed from the appearance-bond amount on each charge (cash alternative excluded).</div>
+      <div className="section-note">Bail parsed from the appearance-bond amount (cash alternative excluded). Charges sharing one bond count once, and bail on charges with a disposition is left out, matching the county's roster page.</div>
       <table className="stats-table">
         <thead><tr><th>Category</th><th>Median</th><th>Mean</th><th>n</th></tr></thead>
         <tbody>

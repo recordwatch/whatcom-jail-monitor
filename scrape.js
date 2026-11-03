@@ -99,6 +99,9 @@ function mapCharges(offenses) {
     eventNumber: o.event_number,
     disposition: o.disposition,
     dispositionDate: o.disposition_date,
+    // Charges that share a bond_number are covered by one bail; the county
+    // shows the amount on the first and "INCLUDED" on the rest.
+    bondNumber: o.bond_number ?? null,
   }));
 }
 
@@ -144,6 +147,14 @@ async function applyCountyReleases(roster, log, now) {
   const days = new Set([today, addDays(today, -1)]);
   for (const e of pending) for (const d of daysFor(e)) days.add(d);
 
+  // Released people recorded before charges carried bondNumber. The county's
+  // release record has their offenses, so look them up once on their release
+  // day (or around a detected release).
+  const needBonds = Object.values(roster).filter(e =>
+    e.status === 'released' && (e.charges || []).some(c => !('bondNumber' in c)));
+  const bondDaysFor = e => (e.releaseSource === 'county' ? [sortable(e.releasedAt).slice(0, 10)] : daysFor(e));
+  for (const e of needBonds) for (const d of bondDaysFor(e)) days.add(d);
+
   const county = new Map();   // booking_num -> county release record
   const fetched = new Set();
   for (const day of [...days].sort()) {
@@ -184,6 +195,33 @@ async function applyCountyReleases(roster, log, now) {
     }
   }
 
+  // Fill bondNumber from the county's offenses. The releases feed lists them
+  // in a different order than the roster, sometimes repeated, so each charge
+  // is matched on (description, cause number) and gets a bond only when that
+  // pair has exactly one bond_number on the county record. Anything else (or
+  // a release the county doesn't list) is null, which shows the charge's own
+  // bail as before.
+  const bondKey = (desc, cause) => JSON.stringify([desc ?? null, cause ?? null]);
+  let bondsFilled = 0, bondsNull = 0;
+  for (const e of needBonds) {
+    const r = county.get(e.idnum);
+    if (!r && !bondDaysFor(e).every(d => fetched.has(d))) continue;   // retried next run
+    const bondsByKey = new Map();
+    for (const o of (Array.isArray(r?.offenses) ? r.offenses : [])) {
+      const k = bondKey(o?.offense_description, o?.citation_number);
+      if (!bondsByKey.has(k)) bondsByKey.set(k, new Set());
+      bondsByKey.get(k).add(o?.bond_number ?? null);
+    }
+    const charges = e.charges.map(c => {
+      if ('bondNumber' in c) return c;
+      const found = bondsByKey.get(bondKey(c.charge, c.causeNumber));
+      const bondNumber = found?.size === 1 ? [...found][0] : null;
+      if (bondNumber != null) bondsFilled++; else bondsNull++;
+      return { ...c, bondNumber };
+    });
+    update(e.idnum, { charges });
+  }
+
   // Booked and released between two of our runs. Only releases after our
   // first run count; anyone released before it was never ours to see.
   const start = log.reduce((min, e) => (e.firstSeen && sortable(e.firstSeen) < min ? sortable(e.firstSeen) : min), '9999');
@@ -211,6 +249,7 @@ async function applyCountyReleases(roster, log, now) {
   }
 
   console.log(`  County releases: ${fetched.size}/${days.size} day(s) fetched, ${verified} release time(s) verified, ${added} never-seen booking(s) added`);
+  if (needBonds.length) console.log(`  Bond numbers for ${needBonds.length} released booking(s): ${bondsFilled} charge(s) filled from the county, ${bondsNull} null (no bond or no unique match); bookings whose day failed are retried next run`);
 }
 
 async function run() {
