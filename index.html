@@ -3,19 +3,18 @@
   <head>
     <!-- Ask search engines not to list or cache pages with people's names. -->
     <meta name="robots" content="noindex, noarchive" />
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-F6032P9Y3P"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-F6032P9Y3P');
-    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Whatcom County Jail Roster Monitor</title>
+    <!-- Google tag (gtag.js): one GA4 property for wajaildata.org + all county monitors -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-LD86GBGC48"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-LD86GBGC48', { content_group: 'whatcom' });
+    </script>
     <script type="module" crossorigin src="./assets/index-6616ce3b.js"></script>
     <link rel="stylesheet" href="./assets/index-64d312d6.css">
   </head>
