@@ -218,9 +218,12 @@ export function computeStats(log) {
     .sort((a, b) => b.chargeCount - a.chargeCount)
 
   // --- Detention duration by category (released only) ---
+  // Starts at the county's booking date only. firstSeen is when the scraper
+  // noticed the booking, not when it happened, so a stay without a booking
+  // date is left out rather than measured from the wrong start.
   const detentionByCategory = {}
   for (const e of released) {
-    const days = daysBetween(e.bookingDate || e.firstSeen, e.releasedAt)
+    const days = daysBetween(e.bookingDate, e.releasedAt)
     if (days === null) continue
     const cats = new Set((e.charges || []).filter(c => c.charge).map(c => categorizeCharge(c.charge)))
     for (const cat of cats) {
