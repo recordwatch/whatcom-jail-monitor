@@ -63,24 +63,10 @@ jobs:
             bash .github/scripts/scrape-health.sh failure
           fi
 
-      - name: Copy data to frontend public
-        run: |
-          mkdir -p frontend/public/data
-          cp data/*.json frontend/public/data/
-
-      # Building, committing and publishing never fail the run: a hiccup here
-      # leaves the data in place and the next run tries again. A broken
-      # frontend build still doesn't throw away scraped data (it did on
-      # Sep 25-26): the commit runs whether or not the build worked.
-      - name: Install frontend dependencies
-        continue-on-error: true
-        run: cd frontend && npm install
-
-      - name: Build frontend
-        id: build
-        continue-on-error: true
-        run: cd frontend && npm run build
-
+      # Committing, building and publishing never fail the run: a hiccup here
+      # leaves the data in place and the next run tries again. The data is
+      # committed before the frontend is built, so a broken, hung or cancelled
+      # build can't throw away scraped data (a broken one did on Sep 25-26).
       - name: Commit data files
         if: ${{ !cancelled() }}
         continue-on-error: true
@@ -98,6 +84,20 @@ jobs:
             if git push; then exit 0; fi
           done
           echo "::warning::Push still rejected after 3 retries; the next run will push this data"
+
+      - name: Copy data to frontend public
+        run: |
+          mkdir -p frontend/public/data
+          cp data/*.json frontend/public/data/
+
+      - name: Install frontend dependencies
+        continue-on-error: true
+        run: cd frontend && npm install
+
+      - name: Build frontend
+        id: build
+        continue-on-error: true
+        run: cd frontend && npm run build
 
       - name: Deploy to GitHub Pages
         if: steps.build.outcome == 'success'
